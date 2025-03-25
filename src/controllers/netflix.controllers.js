@@ -19,7 +19,7 @@ const SUBJECT_FILTERS = [
 
 const SUBJECT_QUERY = SUBJECT_FILTERS.map((s) => `subject:"${s}"`).join(" OR ");
 
-// ✅ Load stored codes & remove expired ones
+// Load stored codes & remove expired ones
 const loadCodes = () => {
   if (!fs.existsSync(codesFilePath)) return {};
 
@@ -41,7 +41,7 @@ const loadCodes = () => {
   }
 };
 
-// ✅ Save updated codes
+//  Save updated codes
 const saveCodes = (codes) => {
   try {
     fs.writeFileSync(codesFilePath, JSON.stringify(codes, null, 2));
@@ -50,7 +50,7 @@ const saveCodes = (codes) => {
   }
 };
 
-// ✅ Extract Netflix Code from Email Content
+// Extract Netflix Code from Email Content
 const extractNetflixCode = (emailText) => {
   const codeMatch = emailText.match(/\b\d{4,6}\b/);
   return codeMatch
@@ -58,9 +58,9 @@ const extractNetflixCode = (emailText) => {
     : null;
 };
 
-// ✅ Fetch Latest Netflix Code from Gmail
+// Fetch Latest Netflix Code from Gmail
 export const requestNetflixCode = async (email) => {
-  console.log("🔹 Request received for email:", email);
+  // console.log("🔹 Request received for email:", email);
 
   if (!email) {
     throw new Error("Email is required");
@@ -147,7 +147,7 @@ export const requestNetflixCode = async (email) => {
       throw new Error("Netflix code not found");
     }
 
-    // ✅ Store the new code
+    // Store the new code
     const codes = loadCodes();
     codes[email] = { ...extractedCode, emailDate: emailDate.toISOString() };
     saveCodes(codes);
