@@ -1,8 +1,8 @@
 import { gmail } from "../config/auth.google.js";
 import { decode } from "html-entities";
-import * as cheerio from "cheerio"; // Use cheerio for HTML parsing
+import * as cheerio from "cheerio"; 
 
-// ✅ Password Reset Request Subject in Multiple Languages
+// Password Reset Request Subject in Multiple Languages
 const SUBJECT_FILTERS = [
   "Complete your password reset request", // English
   "Complétez votre demande de réinitialisation de mot de passe", // French

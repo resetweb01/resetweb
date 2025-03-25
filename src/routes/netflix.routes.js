@@ -3,7 +3,7 @@ import { requestNetflixCode } from "../controllers/netflix.controllers.js";
 
 const router = express.Router();
 
-// ✅ Request Netflix Code and return the fresh code
+// Request Netflix Code and return the fresh code
 router.post("/request-code", async (req, res) => {
   const { email } = req.body;
 
