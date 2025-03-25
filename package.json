@@ -9,7 +9,7 @@
     "build": "cd frontend && npm install && npm run build",
     "start": "node index.js"
   },
-  "author": "Sagar",
+  "author": "Resetweb",
   "license": "ISC",
   "dependencies": {
     "cheerio": "^1.0.0",
