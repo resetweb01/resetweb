@@ -26,8 +26,8 @@ if (!fs.existsSync(DATA_DIR)) {
 app.use(
   cors({
     origin: [
-      process.env.FRONTEND_URL,
       "https://kratosvs.com/",
+      process.env.FRONTEND_URL,
       "http://localhost:5000",
       "http://localhost:5173",
     ],
