@@ -1,19 +1,43 @@
 import { Router } from "express";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const router = Router();
-const CODES_FILE = path.join(process.cwd(), "data", "accessCodes.json");
+const CODES_FILE = path.join(__dirname, "..", "data", "accessCodes.json");
 
 // Helper functions
 const readCodes = () => {
-  if (!fs.existsSync(CODES_FILE)) return [];
-  const content = fs.readFileSync(CODES_FILE);
-  return JSON.parse(content);
+  try {
+    if (!fs.existsSync(CODES_FILE)) {
+      fs.mkdirSync(path.dirname(CODES_FILE), { recursive: true });
+      fs.writeFileSync(CODES_FILE, JSON.stringify([]));
+      return [];
+    }
+    const content = fs.readFileSync(CODES_FILE, "utf-8");
+    return JSON.parse(content);
+  } catch (error) {
+    console.error("Error reading codes:", error);
+    return [];
+  }
 };
 
-const saveCodes = (codes) => {
-  fs.writeFileSync(CODES_FILE, JSON.stringify(codes, null, 2));
+const saveCodes = async (codes) => {
+  try {
+    await fs.promises.mkdir(path.dirname(CODES_FILE), { recursive: true });
+    const tempFile = CODES_FILE + ".tmp";
+    await fs.promises.writeFile(tempFile, JSON.stringify(codes, null, 2));
+    await fs.promises.rename(tempFile, CODES_FILE);
+    console.log(`Saved ${codes.length} codes to ${CODES_FILE}`);
+    return true;
+  } catch (error) {
+    console.error("Failed to save codes:", error);
+    return false;
+  }
 };
 
 // Simplified expiration check
@@ -32,7 +56,7 @@ const cleanExpiredCodes = () => {
 };
 
 // Generate new access code
-router.post("/codes", (req, res) => {
+router.post("/codes", async (req, res) => {
   try {
     const { code, expiryDays } = req.body;
 
@@ -46,20 +70,27 @@ router.post("/codes", (req, res) => {
       code: code || Math.random().toString(36).substring(2, 10).toUpperCase(),
       expiryDays: Number(expiryDays),
       createdAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + expiryDays * 86400000).toISOString(), // 86400000 ms/day
+      expiresAt: new Date(Date.now() + expiryDays * 86400000).toISOString(),
     };
 
     const codes = readCodes();
     codes.push(newCode);
-    saveCodes(codes);
+    const saveSuccess = await saveCodes(codes); // Wait for save to complete
 
-    // console.log(
-    //   `Generated code ${newCode.code} expires at ${newCode.expiresAt}`
-    // );
+    if (!saveSuccess) {
+      throw new Error("Failed to save codes to file");
+    }
+
+    // Verify the code was actually saved
+    const updatedCodes = readCodes();
+    if (!updatedCodes.some((c) => c.id === newCode.id)) {
+      throw new Error("Code not found in file after saving");
+    }
+
     res.status(201).json(newCode);
   } catch (error) {
     console.error("Code generation error:", error);
-    res.status(500).json({ error: "Failed to generate code" });
+    res.status(500).json({ error: error.message || "Failed to generate code" });
   }
 });
 
@@ -135,9 +166,10 @@ router.delete("/codes/:id", (req, res) => {
   }
 });
 
-// Clean expired codes every hour
-setInterval(cleanExpiredCodes, 3600000);
-cleanExpiredCodes();
+// setInterval(() => {
+//   cleanExpiredCodes().catch(console.error);
+// }, 6 * 60 * 60 * 1000);
+// cleanExpiredCodes();
 
 // Add this before export default router
 router.get("/debug-code/:id", (req, res) => {
