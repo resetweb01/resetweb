@@ -27,6 +27,7 @@ app.use(
   cors({
     origin: [
       process.env.FRONTEND_URL,
+      "https://kratosvs.com/",
       "http://localhost:5000",
       "http://localhost:5173",
     ],
