@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import "dotenv/config";
+import connectDB from "./src/db/index.js";
 import emailRoutes from "./src/routes/email.routes.js";
 import adminRoutes from "./src/routes/admin.routes.js";
 import householdRoutes from "./src/routes/household.routes.js";
@@ -69,7 +70,14 @@ app.use((err, req, res, next) => {
   res.status(500).send("Something broke!");
 });
 
-const port = process.env.PORT || 5000;
-app.listen(port, "0.0.0.0", () => {
-  console.log(`Server running on port ${port}`);
-});
+// ✅ Connect to Database and Start Server
+connectDB()
+  .then(() => {
+    const PORT = process.env.PORT || 8000;
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("❌ MONGO DB connection failed:", err);
+  });
