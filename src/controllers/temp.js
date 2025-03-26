@@ -1,4 +1,5 @@
 import { gmail } from "../config/auth.google.js";
+import moment from "moment";
 
 export const getHouseholdNetflixEmail = async (req, res) => {
   try {
@@ -7,11 +8,36 @@ export const getHouseholdNetflixEmail = async (req, res) => {
       return res.status(400).json({ message: "Email is required." });
     }
 
-    // Fetch the latest email with the subject
+    // List of subject lines in different languages
+    const subjects = [
+      "Kode akses sementara Netflix-mu",
+      "Kode akses sementaramu",
+      "Tu código de acceso temporal",
+      "Tu código de acceso temporal de Netflix", // spanish(Your Netflix temporary access code)
+      "Importante: Cómo actualizar tu Hogar con Netflix", // Spanish
+      "",
+      "Kode akses sementara Netflix-mu", // indonesian
+      "ข้อมูลสำคัญ: วิธีอัปเดตครัวเรือน Netflix", // Thai
+      "รหัสการเข้าถึงชั่วคราวของ Netflix ของคุณ", // Thai(Your Netflix temporary access code)
+      "Penting: Cara memperbarui Rumah dengan Akun Netflix-mu",
+      "Tu código de acceso temporal de Netflix",
+
+      "Important : Comment mettre à jour votre foyer Netflix", // French
+      "Votre code d'accès temporaire Netflix", // french(Your Netflix temporary access code)
+      "Important: How to update your Netflix household",
+      "Your Netflix temporary access code",
+    ];
+
+    // Create a query string for the Gmail API
+    const query = subjects
+      .map((subject) => `subject:"${subject}"`)
+      .join(" OR ");
+
+    // Fetch the latest email with the required subject
     const response = await gmail.users.messages.list({
       userId: "me",
       maxResults: 1,
-      q: 'subject:"Important: How to update your Netflix household" OR subject:"Your Netflix temporary access code"',
+      q: query,
     });
 
     if (!response.data.messages || response.data.messages.length === 0) {
@@ -31,42 +57,30 @@ export const getHouseholdNetflixEmail = async (req, res) => {
 
     // Extract the "to" field from the email headers
     const toHeader = headers.find((h) => h.name === "To")?.value || null;
-
     if (!toHeader) {
-      return res
-        .status(404)
-        .json({ message: "Recipient email not found in the email headers." });
+      return res.status(404).json({ message: "Recipient email not found." });
     }
 
     // Extract the email address from the "to" field
     const toEmail = toHeader.match(/<([^>]+)>/)?.[1] || toHeader;
-
-    // Check if the entered email matches the "to" email
     if (toEmail !== email) {
-      return res.status(403).json({
-        message: "Unauthorized email. The email was not sent to this address.",
-      });
+      return res.status(403).json({ message: "Unauthorized email." });
     }
 
-    // Extract other email details
-    const subject =
-      headers.find((h) => h.name === "Subject")?.value || "No Subject";
-    const from =
-      headers.find((h) => h.name === "From")?.value || "Unknown Sender";
+    // Extract the email date
     const dateHeader =
       headers.find((h) => h.name === "Date")?.value || "Unknown Date";
+    const emailDate = new Date(dateHeader).getTime();
+    const formattedDate = moment(emailDate).format("MMMM Do, h:mm A"); // Example: "March 23rd, 12:58 PM"
 
-    // Convert the email date to a timestamp
-    const emailDate = new Date(dateHeader).getTime(); // Convert to milliseconds
-    const currentTime = Date.now(); // Current time in milliseconds
-    const timeDifference = currentTime - emailDate; // Difference in milliseconds
-
-    // Check if the email is older than 15 minutes
+    const currentTime = Date.now();
+    const timeDifference = currentTime - emailDate;
     const FIFTEEN_MINUTES = 15 * 60 * 1000; // 15 minutes in milliseconds
+
     if (timeDifference > FIFTEEN_MINUTES) {
-      return res.status(400).json({
-        message: "The email link has expired. Please request again.",
-      });
+      return res
+        .status(400)
+        .json({ message: "The email link has expired. Please request again." });
     }
 
     // Extract the email body
@@ -83,62 +97,29 @@ export const getHouseholdNetflixEmail = async (req, res) => {
       return res.status(404).json({ message: "No email content found!" });
     }
 
-    // ✅ Remove unwanted content from the email body
-    const unwantedContent = [
-      "If you did not initiate this request, consider",
-      "did not initiate this request,",
-      "Keep your account secure:",
-      "we recommend that you immediately",
-      "sign out of all devices that you",
+    // Extract the correct link from the email
+    const buttonRegex =
+      /<a[^>]*>(Yes, this was me|Get Code|Dapatkan Kode|Ya, Ini Aku|Oui, c'était moi|Obtenir le code|Sí, la envié yo|Obtener código|Ya, Itu Saya|Sí, fui yo|รับรหัส|ใช่แล้ว นี่คือฉัน|Oui, c'était moi)<\/a>/i;
+    const match = emailBody.match(buttonRegex);
+    let extractedLink = null;
 
-      "If you ",
-      "know who this was,",
-      "You can also",
-      "change your password",
-      "don",
-      " /a>.",
-      "recognise",
-      "recognize",
-      "Netflix International B.V.",
-      "Notification Settings",
-      "Terms of Use",
-      "Privacy",
-      "We're here to help",
-      "Visit the for more info.",
-      "If you did not initiate this request,",
-      "please consider",
-      "changing your password.",
-      "Questions? Visit the Help Center",
-      "Netflix Services Canada ULC",
-      "1200 Waterfront Centre, 200 Burrard St, Vancouver, BC V7X 1T2, Canada",
-      "The Netflix team",
-      "'t't",
-    ];
+    if (match) {
+      const anchorTag = match[0];
+      const hrefMatch = anchorTag.match(/href="([^"]+)"/);
+      extractedLink = hrefMatch ? hrefMatch[1] : null;
+    }
 
-    // Preserve the link and button HTML
-    const linkButtonRegex = /<a[^>]*class="[^"]*button[^"]*"[^>]*>.*?<\/a>/g;
-    const linkButtonMatch = emailBody.match(linkButtonRegex);
-    const linkButtonHtml = linkButtonMatch ? linkButtonMatch[0] : "";
-
-    unwantedContent.forEach((content) => {
-      emailBody = emailBody.replace(new RegExp(content, "gi"), "");
-    });
-
-    emailBody = emailBody.replace(/Hi\s+[^,]+,\s*/g, ""); // removing the greeting
-    // emailBody = emailBody.replace(/<div[^>]*>.*?<\/div>/g, ""); // Remove all div tags
-    emailBody = emailBody.replace(/<p[^>]*>.*?<\/p>/g, "");
-
-    emailBody += linkButtonHtml;
+    if (!extractedLink) {
+      return res.status(404).json({ message: "Verification link not found!" });
+    }
 
     return res.status(200).json({
       requesterEmail: email,
-      from,
-      subject,
-      date: dateHeader,
-      emailBody,
+      verificationLink: extractedLink,
+      emailReceivedAt: formattedDate, // Formatted email timestamp
     });
   } catch (error) {
-    // console.error("Error fetching email:", error);
+    console.error("Error fetching email:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
