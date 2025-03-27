@@ -16,6 +16,8 @@ const SUBJECT_FILTERS = [
   "Şifre sıfırlama isteğinizi tamamlayın", // Turkish
   "Selesaikan permintaanmu untuk mengatur ulang sandi", // Indonesian ✅
   "Complete su solicitud para restablecer su contraseña",
+  "Completa tu solicitud de restablecimiento de contraseña",
+  "Réinitialisation de mot de passe à terminer",
 ];
 
 const SUBJECT_QUERY = SUBJECT_FILTERS.map((s) => `subject:"${s}"`).join(" OR ");
