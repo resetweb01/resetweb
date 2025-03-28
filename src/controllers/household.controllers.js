@@ -10,7 +10,6 @@ const NETFLIX_SUBJECTS = [
   "Tu código de acceso temporal",
   "Tu código de acceso temporal de Netflix",
   "Importante: Cómo actualizar tu Hogar con Netflix",
-  "Kode akses sementara Netflix-mu",
   "ข้อมูลสำคัญ: วิธีอัปเดตครัวเรือน Netflix",
   "รหัสการเข้าถึงชั่วคราวของ Netflix ของคุณ",
   "Penting: Cara memperbarui Rumah dengan Akun Netflix-mu",
@@ -126,12 +125,40 @@ export const getHouseholdNetflixEmail = async (req, res) => {
 
           if (!emailBody) continue;
 
+          const allButtonTexts = [
+            "Yes, This Was Me",
+            "Get Code",
+            "Dapatkan Kode",
+            "Ya, Ini Aku",
+            "Oui, c'était moi",
+            "Obtenir le code",
+            "Sí, la envié yo",
+            "Obtener código",
+            "Ya, Itu Saya",
+            "Sí, fui yo",
+            "รับรหัส",
+            "ใช่แล้ว นี่คือฉัน",
+          ];
+
           // Extract verification link
-          const buttonRegex =
-            /<a[^>]*>(Yes, this was me|Get Code|Dapatkan Kode|Ya, Ini Aku|Oui, c'était moi|Obtenir le code|Sí, la envié yo|Obtener código|Ya, Itu Saya|Sí, fui yo|รับรหัส|ใช่แล้ว นี่คือฉัน)<\/a>/i;
-          const hrefMatch = emailBody.match(
-            /<a[^>]+href="([^"]+)"[^>]*>(?:Yes, this was me|Get Code|Dapatkan Kode|Ya, Ini Aku)/i
-          );
+          const buttonPattern = allButtonTexts
+            .map((text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+            .join("|");
+          
+          const hrefMatch =
+            emailBody.match(
+              new RegExp(
+                `<a[^>]+href=["']([^"']+)["'][^>]*>\\s*(?:${buttonPattern})\\s*<\\/a>`,
+                "i"
+              )
+            ) ||
+            emailBody.match(
+              new RegExp(
+                `<a[^>]+href=([^\\s>]+)[^>]*>\\s*(?:${buttonPattern})\\s*<\\/a>`,
+                "i"
+              )
+            );
+
           const extractedLink = hrefMatch?.[1];
 
           if (!extractedLink) continue;
